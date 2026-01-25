@@ -1,36 +1,202 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Sightline
 
-## Getting Started
+Geospatial infrastructure intelligence platform for discovering and analyzing physical-world assets using OpenStreetMap data.
 
-First, run the development server:
+## Overview
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+Sightline enables searching, monitoring, and analyzing real-world infrastructure including:
+
+- Telecommunications towers
+- Power plants and substations
+- Data centers
+- Airports and helipads
+- Ports and harbours
+- Warehouses and industrial facilities
+- Pipelines and refineries
+- Military installations
+- Hospitals, prisons, embassies
+
+## Architecture
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                        Frontend                              │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌─────────────┐ │
+│  │ SearchBar│  │ Filters  │  │ResultList│  │   MapView   │ │
+│  └────┬─────┘  └────┬─────┘  └────┬─────┘  │ (Leaflet.js)│ │
+│       │             │             │        └──────┬──────┘ │
+└───────┼─────────────┼─────────────┼───────────────┼────────┘
+        │             │             │               │
+        └─────────────┴──────┬──────┴───────────────┘
+                             │
+                    POST /api/search
+                             │
+┌────────────────────────────┼────────────────────────────────┐
+│                        Backend                               │
+│                            │                                 │
+│  ┌─────────────────────────▼─────────────────────────────┐  │
+│  │                    route.ts                            │  │
+│  └─────────────────────────┬─────────────────────────────┘  │
+│                            │                                 │
+│         ┌──────────────────┼──────────────────┐             │
+│         │                  │                  │             │
+│  ┌──────▼──────┐   ┌───────▼───────┐   ┌─────▼─────┐       │
+│  │  parser.ts  │   │    geo.ts     │   │overpass.ts│       │
+│  │   (NLP)     │   │  (Nominatim)  │   │  (OSM)    │       │
+│  └─────────────┘   └───────────────┘   └───────────┘       │
+│                                                              │
+│  ┌─────────────────────────────────────────────────────────┐ │
+│  │                     cache.ts                             │ │
+│  └─────────────────────────────────────────────────────────┘ │
+└──────────────────────────────────────────────────────────────┘
+                             │
+                             ▼
+         ┌───────────────────────────────────────┐
+         │           External APIs               │
+         │  ┌─────────────┐  ┌────────────────┐  │
+         │  │  Nominatim  │  │  Overpass API  │  │
+         │  │  (Geocoding)│  │  (OSM Data)    │  │
+         │  └─────────────┘  └────────────────┘  │
+         └───────────────────────────────────────┘
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Data Sources
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### OpenStreetMap
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+All infrastructure data comes from [OpenStreetMap](https://www.openstreetmap.org/), a collaborative mapping project. OSM data is crowd-sourced and may contain inaccuracies or gaps.
 
-## Learn More
+### Nominatim
 
-To learn more about Next.js, take a look at the following resources:
+Geographic resolution uses the [Nominatim](https://nominatim.openstreetmap.org/) geocoding service to convert place names to bounding boxes and coordinates.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### Overpass API
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Infrastructure queries execute against the [Overpass API](https://overpass-api.de/), which provides read-only access to OSM data.
 
-## Deploy on Vercel
+## Query Syntax
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### Natural Language
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```
+telecom towers in karnataka
+power plants near mumbai
+data centers in california
+airports in germany
+```
+
+### Structured Queries
+
+```
+type:telecom operator:airtel region:karnataka
+type:data_center operator:google
+type:substation region:texas
+type:airport country:france
+```
+
+### Supported Parameters
+
+| Parameter | Description | Example |
+|-----------|-------------|---------|
+| `type:` | Asset type | `type:power_plant` |
+| `operator:` | Operator/owner | `operator:google` |
+| `region:` | State/region | `region:bavaria` |
+| `country:` | Country | `country:india` |
+| `near:` | Proximity search | `near:london` |
+| `radius:` | Search radius (km) | `radius:100` |
+
+### Supported Asset Types
+
+- `telecom` / `tower` - Telecommunications towers
+- `data_center` - Data centers
+- `power_plant` - Power generation facilities
+- `substation` - Electrical substations
+- `airport` - Airports
+- `helipad` - Helipads
+- `port` / `harbour` - Ports and harbours
+- `warehouse` - Warehouses
+- `railyard` - Rail yards
+- `pipeline` - Pipelines
+- `solar` / `wind` / `nuclear` - Renewable/nuclear facilities
+- `dam` - Dams
+- `military` - Military installations
+- `hospital` - Hospitals
+- `prison` - Prisons
+- `embassy` - Embassies
+- `factory` / `industrial` - Industrial facilities
+
+## Development
+
+### Prerequisites
+
+- Node.js 18+
+- npm
+
+### Setup
+
+```bash
+npm install
+npm run dev
+```
+
+Open [http://localhost:3000](http://localhost:3000).
+
+### Project Structure
+
+```
+app/
+├── page.tsx              # Main application page
+├── layout.tsx            # Root layout
+├── globals.css           # Global styles
+└── api/
+    └── search/
+        └── route.ts      # Search API endpoint
+
+components/
+├── SearchBar.tsx         # Query input
+├── Filters.tsx           # Filter sidebar
+├── ResultList.tsx        # Results display
+└── MapView.tsx           # Leaflet map
+
+lib/
+├── types.ts              # Type definitions
+├── parser.ts             # Query parsing and NLP
+├── geo.ts                # Nominatim integration
+├── overpass.ts           # Overpass API queries
+└── cache.ts              # In-memory caching
+```
+
+## Deployment
+
+### Vercel
+
+```bash
+npm install -g vercel
+vercel
+```
+
+### Environment Variables
+
+No environment variables required. The application uses public OpenStreetMap APIs.
+
+### API Rate Limits
+
+- Nominatim: 1 request/second (enforced by Nominatim usage policy)
+- Overpass API: Fair use, avoid heavy queries
+
+## Responsible Use
+
+This tool accesses publicly available OpenStreetMap data. Users must:
+
+1. Respect [OpenStreetMap's tile usage policy](https://operations.osmfoundation.org/policies/tiles/)
+2. Respect [Nominatim usage policy](https://operations.osmfoundation.org/policies/nominatim/)
+3. Respect [Overpass API usage policy](https://wiki.openstreetmap.org/wiki/Overpass_API#Public_Overpass_API_instances)
+4. Not use this tool for illegal surveillance or harmful purposes
+5. Acknowledge that OSM data may be incomplete or inaccurate
+6. Not perform bulk automated queries that overload public infrastructure
+
+The presence or absence of infrastructure in OSM should not be taken as authoritative. Always verify critical information through official sources.
+
+## License
+
+MIT
